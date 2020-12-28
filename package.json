@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc",
     "prepare": "tsc --build --clean && tsc",
-    "deploy": "yarn version && yarn publish",
+    "deploy": "yarn publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
