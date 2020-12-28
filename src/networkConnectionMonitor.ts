@@ -1,6 +1,6 @@
-import { numberFromEnv } from "./envHelper";
 import { pingAddress } from "./pingAddress";
 import { ConnectionMonitorConfig } from "./types/connectionMonitorConfig";
+import { Defaults } from "./types/defaults";
 
 export class NetworkConnectionMonitor {
     private readonly playSoundOnDisconnect: boolean;
@@ -12,20 +12,12 @@ export class NetworkConnectionMonitor {
     private heartbeatInterval: NodeJS.Timeout | null = null;
     private retryCount: number = 0;
 
-    constructor(config: ConnectionMonitorConfig) {
-        const NETWORK_PING_RATE = numberFromEnv("NETWORK_PING_RATE");
-        const MIN_NETWORK_PING_RATE = numberFromEnv("MIN_NETWORK_PING_RATE");
-        const NETWORK_PING_RETRIES = numberFromEnv("NETWORK_PING_RETRIES");
-
-        if (config.pingRate != null && config.pingRate < MIN_NETWORK_PING_RATE) {
-            throw new Error(`Network ping rate ${config.pingRate} is below minimum value of ${MIN_NETWORK_PING_RATE}`);
-        }
-
+    constructor(config: ConnectionMonitorConfig, defaults: Defaults) {
         this.playSoundOnDisconnect = config.playSoundOnDisconnect ?? false;
         this.gatewayAddress = config.gatewayAddress;
         this.logConnectivityChanges = config.logConnectivityChanges ?? false;
-        this.pingRate = config.pingRate ?? NETWORK_PING_RATE;
-        this.pingRetries = config.pingRetries ?? NETWORK_PING_RETRIES;
+        this.pingRate = config.pingRate ?? defaults.networkPingRate;
+        this.pingRetries = config.pingRetries ?? defaults.networkPingRetries;
     }
 
     private _isOnline = false;

@@ -4,14 +4,15 @@ import { HostMonitor } from "./hostMonitor";
 import { Config } from "./types/config";
 import { Host } from "./types/host";
 import { Group } from "./types/group";
+import { Defaults } from "./types/defaults";
 
 export class NetworkMonitor {
     constructor(config: Config) {
-        this.addHosts(config.hosts);
+        this.addHosts(config.hosts, config.defaults);
         if (config.groups != null) {
             this.addGroups(config.groups);
         }
-        this.networkMonitor = new NetworkConnectionMonitor(config.connectionMonitor);
+        this.networkMonitor = new NetworkConnectionMonitor(config.connectionMonitor, config.defaults);
     }
 
     public readonly networkMonitor: NetworkConnectionMonitor;
@@ -26,13 +27,13 @@ export class NetworkMonitor {
         return this._groupMonitors;
     }
 
-    private addHosts(hosts: Host[]) {
+    private addHosts(hosts: Host[], defaults: Defaults) {
         for (const host of hosts) {
             if (host.enabled === false) {
                 continue;
             }
 
-            this._hostMonitors.push(new HostMonitor(host));
+            this._hostMonitors.push(new HostMonitor(host, defaults));
         }
     }
 

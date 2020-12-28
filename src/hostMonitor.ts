@@ -2,8 +2,8 @@ import { Event } from "./event";
 import { Task } from "./task";
 import { Host } from "./types/host";
 import { HostDetails } from "./types/hostDetails";
-import { numberFromEnv } from "./envHelper";
 import { pingAddress } from "./pingAddress";
+import { Defaults } from "./types/defaults";
 
 interface HostEvents {
     connected: HostDetails;
@@ -22,19 +22,11 @@ export class HostMonitor {
     private monitorInterval: NodeJS.Timeout | null = null;
     private retryCount: number = 0;
 
-    constructor(host: Host) {
-        const MIN_HOST_PING_RATE = numberFromEnv("MIN_HOST_PING_RATE");
-        const HOST_PING_RATE = numberFromEnv("HOST_PING_RATE");
-        const HOST_PING_RETRIES = numberFromEnv("HOST_PING_RETRIES");
-
-        if (host.pingRate != null && host.pingRate < MIN_HOST_PING_RATE) {
-            throw new Error(`Ping rate (${host.pingRate}) for ${host.name} is below minimum value of ${MIN_HOST_PING_RATE}`);
-        }
-
+    constructor(host: Host, defaults: Defaults) {
         this.name = host.name;
         this.address = host.address;
-        this.pingRate = host.pingRate ?? HOST_PING_RATE;
-        this.pingRetries = host.pingRetries ?? HOST_PING_RETRIES;
+        this.pingRate = host.pingRate ?? defaults.hostPingRate;
+        this.pingRetries = host.pingRetries ?? defaults.hostPingRetries;
         this.logStatusChanges = host.logStatusChanges ?? false;
         this.onConnectTasks = host.onConnected?.map((x) => new Task(x, host.logTasks));
         this.onDisconnectTasks = host.onDisconnected?.map((x) => new Task(x, host.logTasks));
