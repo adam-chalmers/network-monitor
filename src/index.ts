@@ -6,16 +6,15 @@ import { Host } from "./types/host";
 import { Group } from "./types/group";
 import { Defaults } from "./types/defaults";
 
-export class NetworkMonitor {
+class NetworkMonitor {
     constructor(config: Config) {
-        this.addHosts(config.hosts, config.defaults);
-        if (config.groups != null) {
-            this.addGroups(config.groups);
-        }
-        this.networkMonitor = new NetworkConnectionMonitor(config.connectionMonitor, config.defaults);
+        this.loadConfig(config);
     }
 
-    public readonly networkMonitor: NetworkConnectionMonitor;
+    private _networkMonitor: NetworkConnectionMonitor | undefined;
+    public get networkMonitor(): NetworkConnectionMonitor {
+        return this._networkMonitor!;
+    }
 
     private _hostMonitors: HostMonitor[] = [];
     public get hostMonitors(): readonly HostMonitor[] {
@@ -27,7 +26,7 @@ export class NetworkMonitor {
         return this._groupMonitors;
     }
 
-    private addHosts(hosts: Host[], defaults: Defaults) {
+    private addHosts(hosts: Host[], defaults: Defaults): void {
         for (const host of hosts) {
             if (host.enabled === false) {
                 continue;
@@ -37,7 +36,7 @@ export class NetworkMonitor {
         }
     }
 
-    private addGroups(groups: Group[]) {
+    private addGroups(groups: Group[]): void {
         for (const group of groups) {
             if (group.enabled === false) {
                 continue;
@@ -54,4 +53,26 @@ export class NetworkMonitor {
             this._groupMonitors.push(new GroupMonitor(group, hostMonitors));
         }
     }
+
+    public loadConfig(config: Config): void {
+        this.addHosts(config.hosts, config.defaults);
+        if (config.groups != null) {
+            this.addGroups(config.groups);
+        }
+        this._networkMonitor = new NetworkConnectionMonitor(config.connectionMonitor, config.defaults);
+    }
+
+    public async startMonitoring(): Promise<void> {
+        await this._networkMonitor?.startMonitoring();
+        await Promise.all(this._hostMonitors.map((x) => x.startMonitoring()));
+    }
+
+    public stopMonitoring(): void {
+        for (const monitor of this._hostMonitors) {
+            monitor.stopMonitoring();
+        }
+        this._networkMonitor?.stopMonitoring();
+    }
 }
+
+export { NetworkMonitor, Config };
