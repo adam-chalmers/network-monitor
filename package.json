@@ -1,6 +1,6 @@
 {
   "name": "@adam-chalmers/network-monitor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A package that monitors the connection status of configured devices on the local network.",
   "author": "Adam Chalmers <adam.chalmers93@gmail.com>",
   "license": "ISC",
@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc",
     "prepare": "tsc --build --clean && tsc",
-    "deploy": "npm publish",
+    "deploy": "yarn version && yarn publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
