@@ -1,17 +1,21 @@
-import { Event } from "./event";
+import { EventEmitter } from "./eventEmitter";
 import { DateRange, TimeRange } from "./types/dateRange";
+import { GroupDetails } from "./types/groupDetails";
+import { HostDetails } from "./types/hostDetails";
 import { TaskDefinition } from "./types/taskDefinition";
 
 export class Task {
     private readonly delay?: number;
     private readonly dateRanges?: DateRange[];
     private readonly shouldLog?: boolean;
+    private readonly parameter?: any;
 
     constructor(definition: TaskDefinition, shouldLog?: boolean) {
         this.name = definition.name;
         this.delay = definition.delay;
         this.dateRanges = definition.dateRanges;
         this.shouldLog = shouldLog;
+        this.parameter = definition.param;
     }
 
     public readonly name: string;
@@ -87,18 +91,18 @@ export class Task {
         return false;
     }
 
-    public trigger(emitter: Event<Record<string, any>>, arg?: any) {
+    public trigger(emitter: EventEmitter<Record<string, any>>, details?: HostDetails | GroupDetails) {
         // Schedule the task with a delay if required
         if (this.delay) {
             if (this.shouldLog === true) {
                 console.log(`${new Date().toLocaleString()} - Triggering task "${this.name}" with delay ${this.delay}s.`);
             }
-            setTimeout(() => emitter.emit(this.name, arg), this.delay * 1000);
+            setTimeout(() => emitter.emit(this.name, details, this.parameter), this.delay * 1000);
         } else {
             if (this.shouldLog === true) {
                 console.log(`${new Date().toLocaleString()} - Triggering task "${this.name}" without delay.`);
             }
-            emitter.emit(this.name, arg);
+            emitter.emit(this.name, details, this.parameter);
         }
     }
 }

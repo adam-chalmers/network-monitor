@@ -10,4 +10,5 @@ export interface Host {
     logStatusChanges?: boolean;
     logTasks?: boolean;
     enabled?: boolean;
+    [key: string]: any;
 }

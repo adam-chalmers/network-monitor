@@ -9,4 +9,5 @@ export interface Group {
     onAnyConnected?: TaskDefinition[];
     enabled?: boolean;
     logTasks?: boolean;
+    [key: string]: any;
 }

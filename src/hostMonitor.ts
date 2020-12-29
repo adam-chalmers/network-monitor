@@ -1,4 +1,4 @@
-import { Event } from "./event";
+import { EventEmitter } from "./eventEmitter";
 import { Task } from "./task";
 import { Host } from "./types/host";
 import { HostDetails } from "./types/hostDetails";
@@ -18,21 +18,27 @@ export class HostMonitor {
     private readonly logStatusChanges: boolean;
     private readonly onConnectTasks?: Task[];
     private readonly onDisconnectTasks?: Task[];
+    private readonly extraDetails: Record<string, any>;
 
     private monitorInterval: NodeJS.Timeout | null = null;
     private retryCount: number = 0;
 
     constructor(host: Host, defaults: Defaults) {
-        this.name = host.name;
-        this.address = host.address;
-        this.pingRate = host.pingRate ?? defaults.hostPingRate;
-        this.pingRetries = host.pingRetries ?? defaults.hostPingRetries;
-        this.logStatusChanges = host.logStatusChanges ?? false;
-        this.onConnectTasks = host.onConnected?.map((x) => new Task(x, host.logTasks));
-        this.onDisconnectTasks = host.onDisconnected?.map((x) => new Task(x, host.logTasks));
+        const { name, address, pingRate, pingRetries, logStatusChanges, onConnected, onDisconnected, logTasks, enabled, ...rest } = host;
+
+        const logFiredTasks = logTasks ?? defaults.logHostTasks ?? defaults.logTasks ?? false;
+        this.name = name;
+        this.address = address;
+        this.pingRate = pingRate ?? defaults.hostPingRate;
+        this.pingRetries = pingRetries ?? defaults.hostPingRetries;
+        this.logStatusChanges = logStatusChanges ?? defaults.logHostConnectivityChanges ?? false;
+        this.onConnectTasks = onConnected?.map((x) => new Task(x, logFiredTasks));
+        this.onDisconnectTasks = onDisconnected?.map((x) => new Task(x, logFiredTasks));
+        this.extraDetails = rest;
     }
 
     public readonly name: string;
+    public readonly eventEmitter: EventEmitter<HostEvents> = new EventEmitter();
 
     private _monitoring: boolean = false;
     public get monitoring(): boolean {
@@ -43,8 +49,6 @@ export class HostMonitor {
     public get isOnline(): boolean {
         return this._isOnline;
     }
-
-    public readonly events: Event<HostEvents> = new Event();
 
     private async getInitialStatus(): Promise<boolean> {
         let status: boolean;
@@ -89,13 +93,13 @@ export class HostMonitor {
     private connected() {
         this._isOnline = true;
         this.logStatusChange();
-        const details: HostDetails = { name: this.name, address: this.address, isOnline: true };
-        this.events.emit("connected", details);
+        const details = this.getHostDetails();
+        this.eventEmitter.emit("connected", details);
         const now = new Date();
         if (this.onConnectTasks != null) {
             for (const task of this.onConnectTasks) {
                 if (task.canTrigger(now)) {
-                    task.trigger(this.events, details);
+                    task.trigger(this.eventEmitter, details);
                 }
             }
         }
@@ -104,13 +108,13 @@ export class HostMonitor {
     private disconnected() {
         this._isOnline = false;
         this.logStatusChange();
-        const details: HostDetails = { name: this.name, address: this.address, isOnline: false };
-        this.events.emit("disconnected", details);
+        const details = this.getHostDetails();
+        this.eventEmitter.emit("disconnected", details);
         const now = new Date();
         if (this.onDisconnectTasks != null) {
             for (const task of this.onDisconnectTasks) {
                 if (task.canTrigger(now)) {
-                    task.trigger(this.events, details);
+                    task.trigger(this.eventEmitter, details);
                 }
             }
         }
@@ -141,7 +145,8 @@ export class HostMonitor {
         return {
             name: this.name,
             address: this.address,
-            isOnline: this.isOnline
+            isOnline: this.isOnline,
+            ...this.extraDetails
         };
     }
 }

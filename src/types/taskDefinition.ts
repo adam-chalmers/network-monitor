@@ -5,4 +5,5 @@ export interface TaskDefinition {
     delay?: number;
     dateRanges?: DateRange[];
     enabled?: boolean;
+    param?: any;
 }
