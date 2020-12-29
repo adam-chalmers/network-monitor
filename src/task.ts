@@ -93,11 +93,11 @@ export class Task {
 
     public trigger(emitter: EventEmitter<Record<string, any>>, details?: HostDetails | GroupDetails) {
         // Schedule the task with a delay if required
-        if (this.delay) {
+        if (this.delay != null && this.delay > 0) {
             if (this.shouldLog === true) {
-                console.log(`${new Date().toLocaleString()} - Triggering task "${this.name}" with delay ${this.delay}s.`);
+                console.log(`${new Date().toLocaleString()} - Triggering task "${this.name}" with delay ${this.delay}ms.`);
             }
-            setTimeout(() => emitter.emit(this.name, details, this.parameter), this.delay * 1000);
+            setTimeout(() => emitter.emit(this.name, details, this.parameter), this.delay);
         } else {
             if (this.shouldLog === true) {
                 console.log(`${new Date().toLocaleString()} - Triggering task "${this.name}" without delay.`);
