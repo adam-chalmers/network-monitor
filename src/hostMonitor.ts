@@ -1,44 +1,37 @@
-import { EventEmitter } from "./eventEmitter";
 import { Task } from "./task";
 import { Host } from "./types/host";
 import { HostDetails } from "./types/hostDetails";
 import { pingAddress } from "./pingAddress";
 import { Defaults } from "./types/defaults";
+import { BaseMonitor } from "./baseMonitor";
 
-interface HostEvents {
-    connected: HostDetails;
-    disconnected: HostDetails;
-    [key: string]: HostDetails;
-}
-
-export class HostMonitor {
+export class HostMonitor extends BaseMonitor<HostDetails> {
     private readonly address: string;
     private readonly pingRate: number;
     private readonly pingRetries: number;
-    private readonly logStatusChanges: boolean;
-    private readonly onConnectTasks?: Task[];
-    private readonly onDisconnectTasks?: Task[];
+    private readonly logConnectivityChanges: boolean;
+    private readonly onConnectTasks: Task<HostDetails>[];
+    private readonly onDisconnectTasks: Task<HostDetails>[];
     private readonly extraDetails: Record<string, any>;
 
     private monitorInterval: NodeJS.Timeout | null = null;
     private retryCount: number = 0;
 
     constructor(host: Host, defaults: Defaults) {
-        const { name, address, pingRate, pingRetries, logStatusChanges, onConnected, onDisconnected, logTasks, enabled, ...rest } = host;
+        super(host.name, host.logTasks ?? defaults.logHostTasks ?? defaults.logTasks ?? false);
 
-        const logFiredTasks = logTasks ?? defaults.logHostTasks ?? defaults.logTasks ?? false;
-        this.name = name;
+        // Unused variables here to facilitate grouping extra parameters into the "rest" object
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { name, address, pingRate, pingRetries, logConnectivityChanges, onConnected, onDisconnected, logTasks, enabled, ...rest } = host;
+
         this.address = address;
         this.pingRate = pingRate ?? defaults.hostPingRate;
         this.pingRetries = pingRetries ?? defaults.hostPingRetries;
-        this.logStatusChanges = logStatusChanges ?? defaults.logHostConnectivityChanges ?? false;
-        this.onConnectTasks = onConnected?.map((x) => new Task(x, logFiredTasks));
-        this.onDisconnectTasks = onDisconnected?.map((x) => new Task(x, logFiredTasks));
+        this.logConnectivityChanges = logConnectivityChanges ?? defaults.logHostConnectivityChanges ?? false;
+        this.onConnectTasks = this.makeTasks(onConnected);
+        this.onDisconnectTasks = this.makeTasks(onDisconnected);
         this.extraDetails = rest;
     }
-
-    public readonly name: string;
-    public readonly eventEmitter: EventEmitter<HostEvents> = new EventEmitter();
 
     private _monitoring: boolean = false;
     public get monitoring(): boolean {
@@ -90,38 +83,24 @@ export class HostMonitor {
         return status;
     }
 
-    private connected() {
+    private connected(): void {
         this._isOnline = true;
         this.logStatusChange();
-        const details = this.getHostDetails();
+        const details = this.getDetails();
         this.eventEmitter.emit("connected", details);
-        const now = new Date();
-        if (this.onConnectTasks != null) {
-            for (const task of this.onConnectTasks) {
-                if (task.canTrigger(now)) {
-                    task.trigger(this.eventEmitter, details);
-                }
-            }
-        }
+        this.fireTasks(this.onConnectTasks, details);
     }
 
-    private disconnected() {
+    private disconnected(): void {
         this._isOnline = false;
         this.logStatusChange();
-        const details = this.getHostDetails();
+        const details = this.getDetails();
         this.eventEmitter.emit("disconnected", details);
-        const now = new Date();
-        if (this.onDisconnectTasks != null) {
-            for (const task of this.onDisconnectTasks) {
-                if (task.canTrigger(now)) {
-                    task.trigger(this.eventEmitter, details);
-                }
-            }
-        }
+        this.fireTasks(this.onDisconnectTasks, details);
     }
 
-    private logStatusChange() {
-        if (this.logStatusChanges) {
+    private logStatusChange(): void {
+        if (this.logConnectivityChanges) {
             console.log(`${new Date().toLocaleString()} - Host ${this.name} (${this.address}) is ${this._isOnline ? "online" : "offline"}.`);
         }
     }
@@ -134,19 +113,24 @@ export class HostMonitor {
         this.monitorInterval = setInterval(() => this.checkStatus(), this.pingRate);
     }
 
-    public stopMonitoring() {
+    public stopMonitoring(): void {
         this._monitoring = false;
         if (this.monitorInterval != null) {
             clearInterval(this.monitorInterval);
         }
     }
 
-    public getHostDetails(): HostDetails {
+    public getDetails(): HostDetails {
         return {
             name: this.name,
             address: this.address,
             isOnline: this.isOnline,
             ...this.extraDetails
         };
+    }
+
+    public dispose(): void {
+        super.dispose();
+        this.stopMonitoring();
     }
 }

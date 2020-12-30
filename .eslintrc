@@ -13,9 +13,24 @@
         // Place to specify ESLint rules. Can be used to overwrite rules specified from the extended configs
         // e.g. "@typescript-eslint/explicit-function-return-type": "off",
         "prefer-const": "error",
-        "@typescript-eslint/no-inferrable-types": {
-            "ignoreParameters": true,
-            "ignoreProperties": true
-        }
+        "prefer-promise-reject-errors": "error",
+        "@typescript-eslint/no-inferrable-types": [
+            "error",
+            {
+                "ignoreParameters": true,
+                "ignoreProperties": true
+            }
+        ],
+        "@typescript-eslint/explicit-function-return-type": [
+            "error",
+            {
+                "allowExpressions": true,
+                "allowTypedFunctionExpressions": false,
+                "allowHigherOrderFunctions": false,
+                "allowDirectConstAssertionInArrowFunctions": false,
+                "allowConciseArrowFunctionExpressionsStartingWithVoid": false
+            }
+        ],
+        "@typescript-eslint/no-explicit-any": "off"
     }
 }

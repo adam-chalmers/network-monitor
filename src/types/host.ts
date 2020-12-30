@@ -7,7 +7,7 @@ export interface Host {
     pingRetries?: number;
     onConnected?: TaskDefinition[];
     onDisconnected?: TaskDefinition[];
-    logStatusChanges?: boolean;
+    logConnectivityChanges?: boolean;
     logTasks?: boolean;
     enabled?: boolean;
     [key: string]: any;

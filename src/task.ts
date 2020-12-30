@@ -1,10 +1,11 @@
 import { EventEmitter } from "./eventEmitter";
+import { ConnectivityDetails } from "./types/connectivityDetails";
 import { DateRange, TimeRange } from "./types/dateRange";
 import { GroupDetails } from "./types/groupDetails";
 import { HostDetails } from "./types/hostDetails";
 import { TaskDefinition } from "./types/taskDefinition";
 
-export class Task {
+export class Task<T extends HostDetails | GroupDetails | ConnectivityDetails> {
     private readonly delay?: number;
     private readonly dateRanges?: DateRange[];
     private readonly shouldLog?: boolean;
@@ -65,7 +66,7 @@ export class Task {
         return true;
     }
 
-    public canTrigger(date: Date) {
+    public canTrigger(date: Date): boolean {
         if (this.dateRanges == null) {
             return true;
         }
@@ -91,7 +92,7 @@ export class Task {
         return false;
     }
 
-    public trigger(emitter: EventEmitter<Record<string, any>>, details?: HostDetails | GroupDetails) {
+    public trigger(emitter: EventEmitter<Record<string, any>>, details?: T): void {
         // Schedule the task with a delay if required
         if (this.delay != null && this.delay > 0) {
             if (this.shouldLog === true) {

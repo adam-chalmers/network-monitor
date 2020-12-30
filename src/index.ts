@@ -17,9 +17,9 @@ class NetworkMonitor {
 
     public readonly eventEmitter: EventEmitter<Record<string, HostDetails | GroupDetails>> = new EventEmitter();
 
-    private _networkMonitor: NetworkConnectionMonitor | undefined;
-    public get networkMonitor(): NetworkConnectionMonitor {
-        return this._networkMonitor!;
+    private _connectionMonitor: NetworkConnectionMonitor | undefined;
+    public get connectionMonitor(): NetworkConnectionMonitor | undefined {
+        return this._connectionMonitor;
     }
 
     private _hostMonitors: HostMonitor[] = [];
@@ -65,28 +65,57 @@ class NetworkMonitor {
         }
     }
 
-    private attachEvents(emitter: EventEmitter<any>, ...taskLists: (TaskDefinition[] | undefined)[]) {
+    private attachEvents(emitter: EventEmitter<any>, ...taskLists: (TaskDefinition[] | undefined)[]): void {
         for (const taskList of taskLists) {
             if (taskList == null) {
                 continue;
             }
 
             for (const task of taskList) {
+                if (task.enabled === false) {
+                    continue;
+                }
+
                 emitter.addListener(task.name, (details, param) => this.eventEmitter.emit(task.name, details, param));
             }
         }
     }
 
+    private disposeMonitors(): void {
+        // Dispose of monitors and remove all event listeners to prevent potential memory leaks from repeatedly reloading config
+        if (this._connectionMonitor != null) {
+            this._connectionMonitor.dispose();
+        }
+
+        for (const monitor of this.hostMonitors) {
+            monitor.dispose();
+        }
+        // Clear array
+        this._hostMonitors.splice(0, this._hostMonitors.length);
+
+        for (const monitor of this._groupMonitors) {
+            monitor.dispose();
+        }
+        // Clear array
+        this._groupMonitors.splice(0, this._groupMonitors.length);
+
+        this.eventEmitter.removeAllListeners();
+    }
+
     public loadConfig(config: Config): void {
+        this.disposeMonitors();
+
         this.addHosts(config.hosts, config.defaults);
         if (config.groups != null) {
             this.addGroups(config.groups, config.defaults);
         }
-        this._networkMonitor = new NetworkConnectionMonitor(config.connectionMonitor, config.defaults);
+        if (config.connectionMonitor.enabled !== false) {
+            this._connectionMonitor = new NetworkConnectionMonitor(config.connectionMonitor, config.defaults);
+        }
     }
 
     public async startMonitoring(): Promise<void> {
-        await this._networkMonitor?.startMonitoring();
+        await this._connectionMonitor?.startMonitoring();
         await Promise.all(this._hostMonitors.map((x) => x.startMonitoring()));
     }
 
@@ -94,7 +123,7 @@ class NetworkMonitor {
         for (const monitor of this._hostMonitors) {
             monitor.stopMonitoring();
         }
-        this._networkMonitor?.stopMonitoring();
+        this._connectionMonitor?.stopMonitoring();
     }
 }
 
