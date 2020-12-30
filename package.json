@@ -1,6 +1,6 @@
 {
     "name": "@adam-chalmers/network-monitor",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "A package that monitors the connection status of configured devices on the local network.",
     "author": "Adam Chalmers <adam.chalmers93@gmail.com>",
     "license": "ISC",
