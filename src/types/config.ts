@@ -4,8 +4,8 @@ import { Group } from "./group";
 import { Host } from "./host";
 
 export interface Config {
-    hosts: Host[];
+    hosts?: Host[];
     groups?: Group[];
-    connectionMonitor: ConnectionMonitorConfig;
+    connectionMonitor?: ConnectionMonitorConfig;
     defaults: Defaults;
 }

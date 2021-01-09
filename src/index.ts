@@ -6,16 +6,26 @@ import { Host } from "./types/host";
 import { Group } from "./types/group";
 import { Defaults } from "./types/defaults";
 import { EventEmitter as EventEmitter } from "./eventEmitter";
-import { GroupDetails } from "./types/groupDetails";
 import { HostDetails } from "./types/hostDetails";
+import { ConnectivityDetails } from "./types/connectivityDetails";
 import { TaskDefinition } from "./types/taskDefinition";
+import { ConnectionMonitorConfig } from "./types/connectionMonitorConfig";
+import { Details } from "./types/details";
+
+interface Events {
+    networkConnected: ConnectivityDetails;
+    networkDisconnected: ConnectivityDetails;
+    hostConnected: HostDetails;
+    hostDisconnected: HostDetails;
+    [key: string]: Details;
+}
 
 class NetworkMonitor {
     constructor(config: Config) {
         this.loadConfig(config);
     }
 
-    public readonly eventEmitter: EventEmitter<Record<string, HostDetails | GroupDetails>> = new EventEmitter();
+    public readonly eventEmitter: EventEmitter<Events> = new EventEmitter();
 
     private _connectionMonitor: NetworkConnectionMonitor | undefined;
     public get connectionMonitor(): NetworkConnectionMonitor | undefined {
@@ -40,9 +50,9 @@ class NetworkMonitor {
 
             const monitor = new HostMonitor(host, defaults);
             this._hostMonitors.push(monitor);
-            this.attachEvents(monitor.eventEmitter, host.onConnected, host.onDisconnected);
-            monitor.eventEmitter.addListener("connected", (details, param) => this.eventEmitter.emit("connected", details, param));
-            monitor.eventEmitter.addListener("disconnected", (details, param) => this.eventEmitter.emit("disconnected", details, param));
+            this.forwardEvents(monitor.eventEmitter, host.onConnected, host.onDisconnected);
+            monitor.eventEmitter.addListener("connected", (details, param) => this.eventEmitter.emit("hostConnected", details, param));
+            monitor.eventEmitter.addListener("disconnected", (details, param) => this.eventEmitter.emit("hostDisconnected", details, param));
         }
     }
 
@@ -59,13 +69,23 @@ class NetworkMonitor {
                     throw new Error(`Host ${hostName} was configured to be in group ${group.name} but does not exist.`);
                 }
                 hostMonitors.push(monitor);
-                this.attachEvents(monitor.eventEmitter, group.onAnyConnected, group.onAllConnected, group.onAnyDisconnected, group.onAllDisconnected);
+                this.forwardEvents(monitor.eventEmitter, group.onAnyConnected, group.onAllConnected, group.onAnyDisconnected, group.onAllDisconnected);
             }
-            this._groupMonitors.push(new GroupMonitor(group, hostMonitors, defaults));
+            const groupMonitor = new GroupMonitor(group, hostMonitors, defaults);
+            this._groupMonitors.push(groupMonitor);
+            this.forwardEvents(groupMonitor.eventEmitter, group.onAnyConnected, group.onAllConnected, group.onAnyDisconnected, group.onAllDisconnected);
         }
     }
 
-    private attachEvents(emitter: EventEmitter<any>, ...taskLists: (TaskDefinition[] | undefined)[]): void {
+    private createConnectionMonitor(config: ConnectionMonitorConfig, defaults: Defaults): void {
+        const monitor = new NetworkConnectionMonitor(config, defaults);
+        this._connectionMonitor = monitor;
+        this.forwardEvents(monitor.eventEmitter, config.onConnected, config.onDisconnected);
+        monitor.eventEmitter.addListener("connected", (details, param) => this.eventEmitter.emit("networkConnected", details, param));
+        monitor.eventEmitter.addListener("disconnected", (details, param) => this.eventEmitter.emit("networkDisconnected", details, param));
+    }
+
+    private forwardEvents(emitter: EventEmitter<any>, ...taskLists: (TaskDefinition[] | undefined)[]): void {
         for (const taskList of taskLists) {
             if (taskList == null) {
                 continue;
@@ -105,12 +125,14 @@ class NetworkMonitor {
     public loadConfig(config: Config): void {
         this.disposeMonitors();
 
-        this.addHosts(config.hosts, config.defaults);
+        if (config.hosts != null) {
+            this.addHosts(config.hosts, config.defaults);
+        }
         if (config.groups != null) {
             this.addGroups(config.groups, config.defaults);
         }
-        if (config.connectionMonitor.enabled !== false) {
-            this._connectionMonitor = new NetworkConnectionMonitor(config.connectionMonitor, config.defaults);
+        if (config.connectionMonitor != null && config.connectionMonitor.enabled !== false) {
+            this.createConnectionMonitor(config.connectionMonitor, config.defaults);
         }
     }
 
@@ -127,4 +149,5 @@ class NetworkMonitor {
     }
 }
 
-export { NetworkMonitor, Config, Host, Group, HostDetails, GroupDetails, HostMonitor, GroupMonitor };
+export { NetworkMonitor, Config };
+// export { NetworkMonitor, Config, Host, Group, ConnectionMonitorConfig, HostDetails, GroupDetails, ConnectivityDetails, HostMonitor };

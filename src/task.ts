@@ -1,11 +1,9 @@
 import { EventEmitter } from "./eventEmitter";
-import { ConnectivityDetails } from "./types/connectivityDetails";
 import { DateRange, TimeRange } from "./types/dateRange";
-import { GroupDetails } from "./types/groupDetails";
-import { HostDetails } from "./types/hostDetails";
+import { Details } from "./types/details";
 import { TaskDefinition } from "./types/taskDefinition";
 
-export class Task<T extends HostDetails | GroupDetails | ConnectivityDetails> {
+export class Task<T extends Details> {
     private readonly delay?: number;
     private readonly dateRanges?: DateRange[];
     private readonly shouldLog?: boolean;

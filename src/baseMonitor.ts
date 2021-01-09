@@ -1,16 +1,15 @@
-import { GroupDetails, HostDetails } from ".";
 import { EventEmitter } from "./eventEmitter";
 import { Task } from "./task";
-import { ConnectivityDetails } from "./types/connectivityDetails";
+import { Details } from "./types/details";
 import { TaskDefinition } from "./types/taskDefinition";
 
-export abstract class BaseMonitor<T extends HostDetails | GroupDetails | ConnectivityDetails> {
+export abstract class BaseMonitor<T extends Details> {
     protected readonly logTasks: boolean;
 
     constructor(name: string, logTasks: boolean) {
+        this.logTasks = logTasks;
         this.name = name;
         this.eventEmitter = new EventEmitter();
-        this.logTasks = logTasks;
     }
 
     public readonly name: string;

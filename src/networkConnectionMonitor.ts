@@ -13,20 +13,42 @@ export class NetworkConnectionMonitor extends BaseMonitor<ConnectivityDetails> {
     private readonly onDisconnectTasks: Task<ConnectivityDetails>[];
     private readonly pingRate: number;
     private readonly pingRetries: number;
+    private readonly extraDetails: Record<string, any>;
 
-    private heartbeatInterval: NodeJS.Timeout | null = null;
+    private monitorInterval: NodeJS.Timeout | null = null;
     private retryCount: number = 0;
 
     constructor(config: ConnectionMonitorConfig, defaults: Defaults) {
-        super("Connection Monitor", config.logTasks ?? false);
+        super("Connection Monitor", config.logTasks ?? defaults.logTasks ?? false);
 
-        this.playSoundOnDisconnect = config.playSoundOnDisconnect ?? false;
-        this.gatewayAddress = config.gatewayAddress;
-        this.logConnectivityChanges = config.logConnectivityChanges ?? false;
-        this.onConnectTasks = this.makeTasks(config.onConnected);
-        this.onDisconnectTasks = this.makeTasks(config.onDisconnected);
-        this.pingRate = config.pingRate ?? defaults.networkPingRate;
-        this.pingRetries = config.pingRetries ?? defaults.networkPingRetries;
+        // Unused variables here to facilitate grouping extra parameters into the "rest" object
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const {
+            gatewayAddress,
+            pingRate,
+            pingRetries,
+            onConnected,
+            onDisconnected,
+            logConnectivityChanges,
+            logTasks,
+            playSoundOnDisconnect,
+            enabled,
+            ...rest
+        } = config;
+
+        this.gatewayAddress = gatewayAddress;
+        this.pingRate = pingRate ?? defaults.networkPingRate;
+        this.pingRetries = pingRetries ?? defaults.networkPingRetries;
+        this.logConnectivityChanges = logConnectivityChanges ?? defaults.logNetworkConnectivityChanges ?? false;
+        this.playSoundOnDisconnect = playSoundOnDisconnect ?? false;
+        this.onConnectTasks = this.makeTasks(onConnected);
+        this.onDisconnectTasks = this.makeTasks(onDisconnected);
+        this.extraDetails = rest;
+    }
+
+    private _monitoring: boolean = false;
+    public get monitoring(): boolean {
+        return this._monitoring;
     }
 
     private _isOnline = false;
@@ -34,71 +56,100 @@ export class NetworkConnectionMonitor extends BaseMonitor<ConnectivityDetails> {
         return this._isOnline;
     }
 
-    private pingSuccess(): void {
-        // If previously offline
-        if (!this._isOnline) {
-            if (this.logConnectivityChanges) {
-                console.log(`---------- System online at ` + new Date().toLocaleString() + " ----------");
-            }
-            this.retryCount = 0;
-            this._isOnline = true;
-            this.fireTasks(this.onConnectTasks, this.getDetails());
+    private connected(): void {
+        this._isOnline = true;
+        this.logStatus();
+        const details = this.getDetails();
+        this.eventEmitter.emit("connected", details);
+        this.fireTasks(this.onConnectTasks, details);
+    }
+
+    private disconnected(): void {
+        this._isOnline = false;
+        this.logStatus();
+        if (this.playSoundOnDisconnect) {
+            process.stderr.write("\x07");
+        }
+
+        const details = this.getDetails();
+        this.eventEmitter.emit("disconnected", details);
+        this.fireTasks(this.onDisconnectTasks, details);
+    }
+
+    private async getStatus(): Promise<boolean> {
+        try {
+            return await pingAddress(this.gatewayAddress);
+        } catch (err) {
+            return false;
         }
     }
 
-    private pingFailure(): void {
-        // If previously online
-        if (this._isOnline) {
-            // If we've retried as many times as configured
-            if (this.retryCount >= this.pingRetries) {
+    // Check the status of the host by pinging it
+    private async checkStatus(): Promise<boolean> {
+        const status = await this.getStatus();
+
+        if (this.isOnline === status) {
+            this.retryCount = 0;
+            return status;
+        }
+
+        if (status) {
+            this.connected();
+        } else {
+            if (this.retryCount === this.pingRetries) {
                 this.retryCount = 0;
-                if (this.logConnectivityChanges) {
-                    console.log(`---------- System offline at ` + new Date().toLocaleString() + " ----------");
-                }
-
-                if (this.playSoundOnDisconnect) {
-                    process.stderr.write("\x07");
-                }
-
-                this._isOnline = false;
-                this.fireTasks(this.onDisconnectTasks, this.getDetails());
+                this.disconnected();
             } else {
                 this.retryCount++;
-                if (this.logConnectivityChanges) {
-                    console.log(`---------- Failed to ping gateway - retrying ${this.retryCount} / ${this.pingRetries} ----------`);
-                }
             }
         }
+        return status;
     }
 
-    // Check connection to the router
-    private async heartbeat(): Promise<void> {
-        try {
-            const result = await pingAddress(this.gatewayAddress);
-            if (result) {
-                this.pingSuccess();
-            } else {
-                this.pingFailure();
+    private logStatus(): void {
+        if (this.logConnectivityChanges) {
+            let message = `System ${this._isOnline ? "on" : "off"}line at ${new Date().toLocaleString()}`;
+            let padding = 80 - message.length;
+            if (padding > 0) {
+                message = ` ${message}`;
+                padding--;
             }
-        } catch (err) {
-            this.pingFailure();
+            if (padding > 0) {
+                message = `${message} `;
+                padding--;
+            }
+            if (padding > 0) {
+                const leftSide = Math.ceil((padding - 2) / 2);
+                const rightSide = padding - 2 - leftSide;
+                message = `${"-".repeat(leftSide)} ${message} ${"-".repeat(rightSide)}`;
+            }
+
+            console.log(message);
         }
     }
 
     public async startMonitoring(): Promise<void> {
-        await this.heartbeat();
-        this.heartbeatInterval = setInterval(() => this.heartbeat(), this.pingRate);
+        this._monitoring = true;
+
+        // Check for an initial status without firing tasks and allow the startMonitoring function to return a promise that resolves after a single check
+        const status = await this.getStatus();
+        this._isOnline = status;
+        this.logStatus();
+
+        this.monitorInterval = setInterval(() => this.checkStatus(), this.pingRate);
     }
 
     public stopMonitoring(): void {
-        if (this.heartbeatInterval != null) {
-            clearInterval(this.heartbeatInterval);
+        this._monitoring = false;
+        if (this.monitorInterval != null) {
+            clearInterval(this.monitorInterval);
         }
     }
 
     public getDetails(): ConnectivityDetails {
         return {
-            isOnline: this._isOnline
+            isOnline: this._isOnline,
+            ...this.extraDetails
         };
     }
 

@@ -10,4 +10,5 @@ export interface ConnectionMonitorConfig {
     logTasks?: boolean;
     playSoundOnDisconnect?: boolean;
     enabled?: boolean;
+    [key: string]: any;
 }

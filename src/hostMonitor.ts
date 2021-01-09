@@ -43,27 +43,17 @@ export class HostMonitor extends BaseMonitor<HostDetails> {
         return this._isOnline;
     }
 
-    private async getInitialStatus(): Promise<boolean> {
-        let status: boolean;
+    private async getStatus(): Promise<boolean> {
         try {
-            status = await pingAddress(this.address);
+            return await pingAddress(this.address);
         } catch (err) {
-            status = false;
+            return false;
         }
-
-        this._isOnline = status;
-        this.logStatusChange();
-        return status;
     }
 
     // Check the status of the host by pinging it
     private async checkStatus(): Promise<boolean> {
-        let status: boolean;
-        try {
-            status = await pingAddress(this.address);
-        } catch (err) {
-            status = false;
-        }
+        const status = await this.getStatus();
 
         if (this.isOnline === status) {
             this.retryCount = 0;
@@ -85,7 +75,7 @@ export class HostMonitor extends BaseMonitor<HostDetails> {
 
     private connected(): void {
         this._isOnline = true;
-        this.logStatusChange();
+        this.logStatus();
         const details = this.getDetails();
         this.eventEmitter.emit("connected", details);
         this.fireTasks(this.onConnectTasks, details);
@@ -93,13 +83,13 @@ export class HostMonitor extends BaseMonitor<HostDetails> {
 
     private disconnected(): void {
         this._isOnline = false;
-        this.logStatusChange();
+        this.logStatus();
         const details = this.getDetails();
         this.eventEmitter.emit("disconnected", details);
         this.fireTasks(this.onDisconnectTasks, details);
     }
 
-    private logStatusChange(): void {
+    private logStatus(): void {
         if (this.logConnectivityChanges) {
             console.log(`${new Date().toLocaleString()} - Host ${this.name} (${this.address}) is ${this._isOnline ? "online" : "offline"}.`);
         }
@@ -109,7 +99,10 @@ export class HostMonitor extends BaseMonitor<HostDetails> {
         this._monitoring = true;
 
         // Check for an initial status without firing tasks and allow the startMonitoring function to return a promise that resolves after a single check
-        await this.getInitialStatus();
+        const status = await this.getStatus();
+        this._isOnline = status;
+        this.logStatus();
+
         this.monitorInterval = setInterval(() => this.checkStatus(), this.pingRate);
     }
 

@@ -10,8 +10,8 @@ export interface Days {
 }
 
 export interface TimeRange {
-    timeStart: number;
-    timeEnd: number;
+    timeStart?: number;
+    timeEnd?: number;
 }
 
 export type DateRange = ((DayRange & Exclusion<Days>) | (Days & Exclusion<DayRange>)) & {

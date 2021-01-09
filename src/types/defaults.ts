@@ -4,6 +4,7 @@ export interface Defaults {
     networkPingRate: number;
     networkPingRetries: number;
     logHostConnectivityChanges?: boolean;
+    logNetworkConnectivityChanges?: boolean;
     logTasks?: boolean;
     logHostTasks?: boolean;
     logGroupTasks?: boolean;
