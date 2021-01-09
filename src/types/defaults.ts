@@ -8,4 +8,5 @@ export interface Defaults {
     logTasks?: boolean;
     logHostTasks?: boolean;
     logGroupTasks?: boolean;
+    logNetworkTasks?: boolean;
 }

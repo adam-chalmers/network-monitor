@@ -19,7 +19,7 @@ export class NetworkConnectionMonitor extends BaseMonitor<ConnectivityDetails> {
     private retryCount: number = 0;
 
     constructor(config: ConnectionMonitorConfig, defaults: Defaults) {
-        super("Connection Monitor", config.logTasks ?? defaults.logTasks ?? false);
+        super("Connection Monitor", config.logTasks ?? defaults.logNetworkTasks ?? defaults.logTasks ?? false);
 
         // Unused variables here to facilitate grouping extra parameters into the "rest" object
         // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -32,9 +32,10 @@ describe("@adam-chalmers/network-monitor @unit groupMonitor.ts", () => {
     let hostMonitors = hosts.map((h) => new HostMonitor(h, defaults));
     let monitor = new GroupMonitor(group, hostMonitors, defaults);
 
-    function setup(group: Group, hosts: Host[] = []): void {
-        hostMonitors = hosts.map((h) => new HostMonitor(h, defaults));
-        monitor = new GroupMonitor(group, hostMonitors, defaults);
+    function setup(group: Group, hosts: Host[] = [], customDefaults?: Defaults): void {
+        const def = customDefaults ?? defaults;
+        hostMonitors = hosts.map((h) => new HostMonitor(h, def));
+        monitor = new GroupMonitor(group, hostMonitors, def);
     }
 
     beforeEach(() => {
@@ -56,6 +57,12 @@ describe("@adam-chalmers/network-monitor @unit groupMonitor.ts", () => {
 
     it("Should use the details given in the config", () => {
         expect(monitor.name).toEqual(group.name);
+    });
+
+    it("Should use defaults.logGroupTasks over defaults.logTasks", () => {
+        const customDefaults: Defaults = { ...defaults, logGroupTasks: false };
+        setup(group, [], customDefaults);
+        expect(monitor["logTasks"]).toEqual(customDefaults.logGroupTasks);
     });
 
     it("Should use the values given in the defaults if none are provided in the host config", () => {

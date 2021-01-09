@@ -24,8 +24,8 @@ describe("@adam-chalmers/network-monitor @unit hostMonitor.ts", () => {
     let pingSpy: jest.SpyInstance<Promise<boolean>, [address: string]>;
     let logSpy: jest.SpyInstance<void, Parameters<typeof console.log>>;
 
-    function setup(host: Host): void {
-        monitor = new HostMonitor(host, defaults);
+    function setup(host: Host, customDefaults?: Defaults): void {
+        monitor = new HostMonitor(host, customDefaults ?? defaults);
     }
 
     beforeEach(() => {
@@ -57,6 +57,12 @@ describe("@adam-chalmers/network-monitor @unit hostMonitor.ts", () => {
         expect(monitor["pingRetries"]).toEqual(defaults.hostPingRetries);
         expect(monitor["logTasks"]).toEqual(defaults.logTasks);
         expect(monitor["logConnectivityChanges"]).toEqual(defaults.logHostConnectivityChanges);
+    });
+
+    it("Should use defaults.logGroupTasks over defaults.logTasks", () => {
+        const customDefaults: Defaults = { ...defaults, logHostTasks: false };
+        setup(host, customDefaults);
+        expect(monitor["logTasks"]).toEqual(customDefaults.logHostTasks);
     });
 
     it("Should override the values given in the defaults if they're provided in the host config", () => {
