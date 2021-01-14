@@ -13,9 +13,9 @@ export class EventEmitter<T extends Record<string, Details>> {
     private readonly handlers: Map<EventHandler<T, any>, EventHandler<T, any>> = new Map();
 
     public addListener<K extends keyof T>(eventName: K, handler: EventHandler<T, K>): void {
-        const safeHandler: EventHandler<T, K> = (details, param): void => {
+        const safeHandler: EventHandler<T, K> = async (details, param): Promise<void> => {
             try {
-                handler(details, param);
+                await handler(details, param);
             } catch (err) {
                 this._emitter.emit("error", err);
             }
