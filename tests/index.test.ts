@@ -1,10 +1,8 @@
 import { NetworkMonitor } from "../src/index";
-import * as ping from "../src/pingAddress";
 import { Config } from "../src/types/config";
 import { Defaults } from "../src/types/defaults";
 import { Host } from "../src/types/host";
 import { Group } from "../src/types/group";
-import { NetworkConnectionMonitor } from "../src/networkConnectionMonitor";
 
 type MakeRequired<T, R extends keyof T> = T & Required<Pick<T, R>>;
 

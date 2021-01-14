@@ -14,7 +14,7 @@ describe("@adam-chalmers/network-monitor @unit eventEmitter.ts", () => {
         expect(emitter.emitter.listeners(name).length).toEqual(1);
     });
 
-    it("Should remover a listener from the underlying emitter", () => {
+    it("Should remove a listener from the underlying emitter", () => {
         const name = "a";
         const func = jest.fn();
         // Add the listener and test to make sure it was actually added to verify that it's then removed
@@ -55,5 +55,25 @@ describe("@adam-chalmers/network-monitor @unit eventEmitter.ts", () => {
         emitter.removeAllListeners();
         expect(emitter.emitter.listenerCount(firstName)).toEqual(0);
         expect(emitter.emitter.listenerCount(secondName)).toEqual(0);
+    });
+
+    it("Should emit 'error' events when a handler throws an error", () => {
+        // Register the error handler function
+        const errorHandler = jest.fn();
+        emitter.emitter.on("error", errorHandler);
+
+        // Register a handler that throws an error
+        const eventName = "test";
+        const error = new Error("Test error");
+        emitter.addListener(eventName, () => {
+            throw error;
+        });
+
+        // Emit the event that calls the above handler
+        emitter.emit(eventName, {});
+
+        // Ensure that the errorHandler function is called and is called with the thrown error
+        expect(errorHandler).toBeCalledTimes(1);
+        expect(errorHandler).toBeCalledWith(error);
     });
 });
