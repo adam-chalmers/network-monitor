@@ -65,8 +65,8 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "b", address: "" }
             ]
         };
-        const addHostsSpy = jest.spyOn(monitor as any, "addHosts");
-        monitor.loadConfig(custom);
+        const addHostsSpy = jest.spyOn(NetworkMonitor.prototype as any, "addHosts");
+        setup(custom);
         expect(addHostsSpy).toBeCalledWith(custom.hosts, custom.defaults);
         expect(monitor.hostMonitors.length).toEqual(2);
         expect(monitor.hostMonitors[0].name).toEqual(custom.hosts[0].name);
@@ -82,7 +82,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "b", address: "" }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
         expect(monitor.hostMonitors.length).toEqual(1);
         expect(monitor.hostMonitors[0].name).toEqual(custom.hosts[1].name);
     });
@@ -90,8 +90,8 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
     it("Should create a group monitor for each defined group", () => {
         // Use Required<T> so we can easily access custom.groups later on without having to deal with the fact that it's optional
         const custom: Required<Config> = { ...config, hosts: [{ name: "a", address: "" }], groups: [{ name: "b", hosts: ["a"] }] };
-        const addGroupsSpy = jest.spyOn(monitor as any, "addGroups");
-        monitor.loadConfig(custom);
+        const addGroupsSpy = jest.spyOn(NetworkMonitor.prototype as any, "addGroups");
+        setup(custom);
         expect(addGroupsSpy).toBeCalledWith(custom.groups, custom.defaults);
         expect(monitor.groupMonitors.length).toEqual(1);
         expect(monitor.groupMonitors[0].name).toEqual(custom.groups[0].name);
@@ -107,7 +107,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "c", hosts: ["a"] }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
         expect(monitor.groupMonitors.length).toEqual(1);
         expect(monitor.groupMonitors[0].name).toEqual(custom.groups[1].name);
     });
@@ -251,11 +251,12 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
         const spy = jest.spyOn(monitor.connectionMonitor!, "dispose");
         monitor["disposeMonitors"]();
         expect(spy).toBeCalledTimes(1);
+        expect(monitor.connectionMonitor).toBeUndefined();
     });
 
     it("Should not throw errors if there is no connection monitor when disposing monitors", () => {
         const custom: Config = { ...config, connectionMonitor: undefined };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         expect(() => monitor["disposeMonitors"]).not.toThrow();
     });
@@ -268,7 +269,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "b", address: "" }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
         const firstDispose = jest.spyOn(monitor.hostMonitors[0], "dispose");
         const secondDispose = jest.spyOn(monitor.hostMonitors[1], "dispose");
 
@@ -286,7 +287,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "c", hosts: ["a"] }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
         const firstDispose = jest.spyOn(monitor.groupMonitors[0], "dispose");
         const secondDispose = jest.spyOn(monitor.groupMonitors[1], "dispose");
 
@@ -303,7 +304,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "b", address: "" }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         // Ensure that there are currently some host monitors to verify that calling disposeMonitors clears the array
         expect(monitor.hostMonitors.length).toEqual(2);
@@ -320,7 +321,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "c", hosts: ["a"] }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         // Ensure that there are currently some group monitors to verify that calling disposeMonitors clears the array
         expect(monitor.groupMonitors.length).toEqual(2);
@@ -335,7 +336,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
             hosts: [{ name: "a", address: "", onConnected: [{ name: "b" }] }],
             groups: [{ name: "c", hosts: ["a"], onAllConnected: [{ name: "d" }] }]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         // Attach a handler to the main monitor's event emitter
         monitor.eventEmitter.addListener("a", jest.fn());
@@ -359,7 +360,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "b", address: "" }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         const firstHost = monitor.hostMonitors[0];
         const secondHost = monitor.hostMonitors[1];
@@ -380,7 +381,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
 
     it("Should not throw an error if there is no connection monitor when the main monitor starts monitoring", async () => {
         const custom: Config = { ...config, connectionMonitor: undefined };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         await expect(monitor.startMonitoring()).resolves.not.toThrow();
     });
@@ -393,7 +394,7 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
                 { name: "b", address: "" }
             ]
         };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         const firstHost = monitor.hostMonitors[0];
         const secondHost = monitor.hostMonitors[1];
@@ -413,8 +414,35 @@ describe("@adam-chalmers/network-monitor @unit index.ts", () => {
 
     it("Should not throw an error if there is no connection monitor when the main monitor stops monitoring", () => {
         const custom: Config = { ...config, connectionMonitor: undefined };
-        monitor.loadConfig(custom);
+        setup(custom);
 
         expect(() => monitor.stopMonitoring()).not.toThrow();
+    });
+
+    it("Should dispose of all monitors when loading a new config", () => {
+        const custom: Config = { ...config, connectionMonitor: { gatewayAddress: "" }, hosts: [{ address: "", name: "" }], groups: [{ hosts: [], name: "" }] };
+        setup(custom);
+        const hostDisposeSpy = jest.spyOn(monitor.hostMonitors[0], "dispose");
+        const groupDisposeSpy = jest.spyOn(monitor.groupMonitors[0], "dispose");
+        const connectionDisposeSpy = jest.spyOn(monitor.connectionMonitor!, "dispose");
+
+        monitor.loadConfig(config);
+        expect(hostDisposeSpy).toBeCalledTimes(1);
+        expect(groupDisposeSpy).toBeCalledTimes(1);
+        expect(connectionDisposeSpy).toBeCalledTimes(1);
+    });
+
+    it("Should clear existing references to monitors when loading a new config", () => {
+        const custom: Config = { ...config, connectionMonitor: { gatewayAddress: "" }, hosts: [{ address: "", name: "" }], groups: [{ hosts: [], name: "" }] };
+        setup(custom);
+        expect(monitor.hostMonitors.length).toEqual(1);
+        expect(monitor.groupMonitors.length).toEqual(1);
+        expect(monitor.connectionMonitor).toBeDefined();
+
+        // Load a config with no host, group and connection monitors defined to ensure that any existing references are gone
+        monitor.loadConfig({ ...config, connectionMonitor: undefined });
+        expect(monitor.hostMonitors.length).toEqual(0);
+        expect(monitor.groupMonitors.length).toEqual(0);
+        expect(monitor.connectionMonitor).toBeUndefined();
     });
 });

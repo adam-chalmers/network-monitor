@@ -103,8 +103,9 @@ class NetworkMonitor {
 
     private disposeMonitors(): void {
         // Dispose of monitors and remove all event listeners to prevent potential memory leaks from repeatedly reloading config
-        if (this._connectionMonitor != null) {
+        if (this._connectionMonitor !== undefined) {
             this._connectionMonitor.dispose();
+            this._connectionMonitor = undefined;
         }
 
         for (const monitor of this.hostMonitors) {

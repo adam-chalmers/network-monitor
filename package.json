@@ -18,7 +18,7 @@
         "build": "yarn lint --quiet && tsc --p ./tsconfig.build.json",
         "lint": "eslint \"src/**\" --cache",
         "prepare": "yarn clean && yarn build",
-        "deploy": "yarn publish",
+        "deploy": "yarn publish --access public",
         "test": "jest --coverage",
         "test:debug": "node --inspect-brk ./node_modules/jest-cli/bin/jest.js --runInBand"
     },
